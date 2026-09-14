@@ -1,0 +1,50 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+.env.*
+!.env.example
+*.log
+build/
+dist/
+*.egg-info/
+# Todas las listas locales, en cualquier carpeta y sin excepciones.
+*.xlsx
+*.xls
+*.csv
+*.ods
+*.list
+*.[lL][iI][sS][tT]
+# Acceso generado con rutas absolutas de esta instalación.
+SelectorMoebius.desktop
+
+# Otros entornos, herramientas y resultados de pruebas.
+venv/
+env/
+ENV/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Configuración local del editor y del agente.
+.idea/
+.vscode/
+.agents/
+.codex/
+
+# Archivos temporales, copias de seguridad y metadatos del sistema.
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini

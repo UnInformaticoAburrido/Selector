@@ -55,21 +55,21 @@ class ImportacionTests(unittest.TestCase):
     def test_cancelar_o_error_conserva_ronda(self):
         selector = Selector(['Ana'])
         selector.seleccionar(1)
-        app = SimpleNamespace(selector=selector, _usar_lista=Mock())
+        app = SimpleNamespace(selector=selector, _guardar_en_biblioteca=Mock())
         for archivo, respuesta in [('', False), ('archivo.xlsx', None), ('inexistente.csv', False)]:
             with self.subTest(archivo=archivo), patch('interfaz.filedialog.askopenfilename', return_value=archivo), patch('interfaz.messagebox.askyesnocancel', return_value=respuesta), patch('interfaz.messagebox.showerror'):
                 Aplicacion.importar(app)
                 self.assertIs(app.selector, selector)
                 self.assertTrue(app.selector.completado)
-                app._usar_lista.assert_not_called()
+                app._guardar_en_biblioteca.assert_not_called()
 
     def test_importar_carga_lista_validada(self):
         ruta = self.ruta / 'alumnos.csv'
         ruta.write_text('Nombre\nAna\nLuis\n', encoding='utf-8')
-        app = SimpleNamespace(_usar_lista=Mock())
+        app = SimpleNamespace(_guardar_en_biblioteca=Mock())
         with patch('interfaz.filedialog.askopenfilename', return_value=str(ruta)), patch('interfaz.messagebox.askyesnocancel', return_value=True):
             Aplicacion.importar(app)
-        selector, origen = app._usar_lista.call_args.args
+        selector, origen = app._guardar_en_biblioteca.call_args.args
         self.assertEqual(selector.alumnos, ['Ana', 'Luis'])
         self.assertEqual(selector.mirados, set())
         self.assertEqual(origen, ruta)

@@ -10,6 +10,7 @@ build/
 dist/
 *.egg-info/
 # Todas las listas locales, en cualquier carpeta y sin excepciones.
+/listas/
 *.xlsx
 *.xls
 *.csv
@@ -48,3 +49,10 @@ coverage.xml
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Catálogo de idiomas de la aplicación (no contiene datos de alumnos).
+!/recursos/textos.xlsx
+!/recursos/idiomas/EN-uk.xlsx
+!/recursos/idiomas/EN-us.xlsx
+!/recursos/idiomas/PO.xlsx
+!/recursos/idiomas/ES-la.xlsx

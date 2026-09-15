@@ -1,4 +1,5 @@
 """Importación de nombres desde la primera columna de Excel o CSV."""
+from textos import tr
 import csv
 from pathlib import Path
 from zipfile import BadZipFile
@@ -18,12 +19,12 @@ def importar_nombres(ruta, omitir_cabecera=False):
     elif extension == ".csv":
         valores = _leer_csv(ruta)
     else:
-        raise ValueError("Formato no compatible. Selecciona un archivo Excel (.xlsx) o CSV (.csv).")
+        raise ValueError(tr('importar.formato'))
     if omitir_cabecera:
         valores = valores[1:]
     nombres = [str(valor).strip() for valor in valores if valor is not None and str(valor).strip()]
     if not nombres:
-        raise ValueError("No se encontraron nombres en la primera columna.")
+        raise ValueError(tr('importar.sin_nombres'))
     return nombres
 
 
@@ -33,16 +34,13 @@ def _leer_excel(ruta):
         from openpyxl.utils.exceptions import InvalidFileException
     except ImportError as error:
         raise ValueError(
-            "Para importar Excel instala las dependencias:\n"
-            "Windows: py -m pip install -r requirements.txt\n"
-            "Linux: python3 -m pip install -r requirements.txt\n"
-            "Usa el mismo entorno de Python con el que abres la aplicación."
+            tr('importar.dependencias')
         ) from error
     try:
         libro = load_workbook(ruta, read_only=True, data_only=True)
         try:
             if not libro.worksheets:
-                raise ValueError("El archivo no contiene ninguna hoja de cálculo.")
+                raise ValueError(tr('importar.sin_hojas'))
             hoja = libro.worksheets[0]
             # No depender de dimensiones incorrectas exportadas por otras aplicaciones.
             hoja.reset_dimensions()
@@ -50,7 +48,7 @@ def _leer_excel(ruta):
         finally:
             libro.close()
     except (BadZipFile, InvalidFileException, ParseError, KeyError) as error:
-        raise ValueError("No se pudo leer el Excel. Comprueba que sea un archivo .xlsx válido y sin contraseña.") from error
+        raise ValueError(tr('importar.excel_error')) from error
 
 
 def _leer_csv(ruta):

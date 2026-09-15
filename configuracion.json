@@ -1,0 +1,10 @@
+{
+  "languaje": "ES",
+  "textos": "recursos/textos.xlsx",
+  "tema": "Claro",
+  "ventana": {
+    "ancho": 1280,
+    "alto": 720,
+    "modo": "ventana"
+  }
+}

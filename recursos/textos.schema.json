@@ -1,0 +1,364 @@
+{
+  "app.nombre": {
+    "texto": [],
+    "titulo": []
+  },
+  "app.descripcion": {
+    "texto": []
+  },
+  "inicio.resultado": {
+    "texto": []
+  },
+  "inicio.detalle": {
+    "texto": []
+  },
+  "inicio.estado": {
+    "texto": []
+  },
+  "inicio.archivo": {
+    "texto": []
+  },
+  "icono.error": {
+    "texto": [
+      "detalle"
+    ],
+    "titulo": []
+  },
+  "lista.abrir": {
+    "texto": [],
+    "titulo": []
+  },
+  "lista.importar": {
+    "texto": [],
+    "titulo": []
+  },
+  "lista.crear": {
+    "texto": [],
+    "titulo": [],
+    "alternativa": []
+  },
+  "lista.cambiar": {
+    "texto": []
+  },
+  "lista.guardar": {
+    "texto": [],
+    "titulo": []
+  },
+  "lista.error": {
+    "texto": [],
+    "abrir": [],
+    "guardar": [],
+    "importar": []
+  },
+  "lista.leyenda": {
+    "texto": [
+      "cantidad",
+      "nombre"
+    ],
+    "singular": [
+      "cantidad",
+      "nombre"
+    ],
+    "plural": [
+      "cantidad",
+      "nombre"
+    ]
+  },
+  "lista.campo_nombre": {
+    "texto": []
+  },
+  "lista.descartar": {
+    "texto": [],
+    "titulo": []
+  },
+  "lista.vacia": {
+    "texto": [],
+    "titulo": [],
+    "alternativa": []
+  },
+  "lista.sin_alumnos": {
+    "texto": []
+  },
+  "lista.extension": {
+    "texto": []
+  },
+  "lista.nombre_invalido": {
+    "texto": []
+  },
+  "lista.una_linea": {
+    "texto": []
+  },
+  "lista.utf8": {
+    "texto": [
+      "detalle"
+    ]
+  },
+  "biblioteca.error": {
+    "texto": [],
+    "titulo": []
+  },
+  "biblioteca.vacia": {
+    "texto": []
+  },
+  "biblioteca.incorporar_error": {
+    "texto": [
+      "archivos"
+    ],
+    "titulo": []
+  },
+  "participante.seleccionado": {
+    "texto": []
+  },
+  "participante.numero": {
+    "texto": [],
+    "abreviado": []
+  },
+  "participante.nombre": {
+    "texto": []
+  },
+  "participante.apellidos": {
+    "texto": []
+  },
+  "participante.alumno": {
+    "texto": []
+  },
+  "participante.participacion": {
+    "texto": []
+  },
+  "participante.estado": {
+    "texto": [],
+    "realizada": []
+  },
+  "participante.cantidad": {
+    "texto": [
+      "cantidad"
+    ],
+    "singular": [
+      "cantidad"
+    ],
+    "plural": [
+      "cantidad"
+    ]
+  },
+  "participante.anadir": {
+    "texto": []
+  },
+  "participante.quitar": {
+    "texto": []
+  },
+  "participante.error": {
+    "texto": [],
+    "titulo": [],
+    "alternativa": []
+  },
+  "crear.instrucciones": {
+    "texto": []
+  },
+  "seleccion.accion": {
+    "texto": [],
+    "aleatoria": []
+  },
+  "seleccion.ayuda": {
+    "texto": []
+  },
+  "seleccion.espera": {
+    "texto": [],
+    "ayuda": []
+  },
+  "seleccion.detalle": {
+    "texto": [
+      "numero"
+    ],
+    "alternativa": [
+      "numero",
+      "solicitado"
+    ]
+  },
+  "seleccion.numero_error": {
+    "texto": [],
+    "titulo": [],
+    "rango": [
+      "total"
+    ]
+  },
+  "ronda.nueva": {
+    "texto": [],
+    "pregunta": []
+  },
+  "ronda.progreso": {
+    "texto": [
+      "pendientes",
+      "total",
+      "vistos"
+    ]
+  },
+  "ronda.completada": {
+    "texto": [],
+    "titulo": [],
+    "pregunta": [],
+    "consola": []
+  },
+  "ronda.error": {
+    "texto": [],
+    "alternativa": []
+  },
+  "archivo.filtro_listas": {
+    "texto": []
+  },
+  "archivo.filtro_todos": {
+    "texto": []
+  },
+  "archivo.filtro_hojas": {
+    "texto": []
+  },
+  "archivo.filtro_excel": {
+    "texto": []
+  },
+  "archivo.filtro_csv": {
+    "texto": []
+  },
+  "importar.aviso": {
+    "texto": [],
+    "titulo": []
+  },
+  "importar.formato": {
+    "texto": []
+  },
+  "importar.sin_nombres": {
+    "texto": []
+  },
+  "importar.dependencias": {
+    "texto": []
+  },
+  "importar.sin_hojas": {
+    "texto": []
+  },
+  "importar.excel_error": {
+    "texto": []
+  },
+  "reporte.accion": {
+    "texto": [],
+    "titulo": []
+  },
+  "reporte.navegador": {
+    "texto": [
+      "url"
+    ]
+  },
+  "reporte.sin_repo": {
+    "texto": []
+  },
+  "reporte.url_error": {
+    "texto": []
+  },
+  "consola.continuar": {
+    "texto": [],
+    "respuesta_si": []
+  },
+  "consola.numero": {
+    "texto": [
+      "total"
+    ]
+  },
+  "consola.ayuda": {
+    "texto": []
+  },
+  "consola.config": {
+    "texto": []
+  },
+  "dialogo.aceptar": {
+    "texto": []
+  },
+  "dialogo.cancelar": {
+    "texto": []
+  },
+  "dialogo.si": {
+    "texto": []
+  },
+  "dialogo.no": {
+    "texto": []
+  },
+  "pantalla.volver": {
+    "texto": []
+  },
+  "config.titulo": {
+    "texto": []
+  },
+  "config.archivo_error": {
+    "texto": [
+      "detalle",
+      "ruta"
+    ]
+  },
+  "config.valor_invalido": {
+    "texto": [
+      "campo"
+    ]
+  },
+  "textos.archivo_error": {
+    "texto": [
+      "detalle",
+      "ruta"
+    ]
+  },
+  "textos.idioma_ausente": {
+    "texto": [
+      "idioma"
+    ]
+  },
+  "textos.formato_error": {
+    "texto": [
+      "detalle"
+    ]
+  },
+  "textos.frase_ausente": {
+    "texto": [
+      "clave",
+      "idioma"
+    ]
+  },
+  "textos.parametros_error": {
+    "texto": [
+      "clave",
+      "parametros"
+    ]
+  },
+  "icono.sin_tamanos": {
+    "texto": []
+  },
+  "icono.dimensiones": {
+    "texto": [
+      "tamano"
+    ]
+  },
+  "icono.generados": {
+    "texto": [
+      "cantidad"
+    ]
+  },
+  "icono.falta_recurso": {
+    "texto": [
+      "ruta"
+    ]
+  },
+  "acceso.solo_linux": {
+    "texto": []
+  },
+  "acceso.instalado": {
+    "texto": [
+      "ruta"
+    ]
+  },
+  "textos.columnas_error": {
+    "texto": []
+  },
+  "consola.prefijo_uso": {
+    "texto": []
+  },
+  "consola.opciones": {
+    "texto": []
+  },
+  "consola.ayuda_general": {
+    "texto": []
+  }
+}

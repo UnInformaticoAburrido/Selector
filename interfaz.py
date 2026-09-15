@@ -1,87 +1,152 @@
 """Interfaz Tkinter para Windows y Linux."""
+from textos import tr, iniciar_textos
 import random
 import sys
 import webbrowser
 import tkinter as tk
+from queue import Queue, Empty
+from threading import Event, Thread
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, ttk
+from dialogos import messagebox
+from configuracion import cargar_configuracion, RUTA_CONFIGURACION, ErrorConfiguracion
+from apariencia import aplicar_estilos, detectar_tema_sistema
 
 from Selector import ARCHIVO_PREDETERMINADO, Selector
+from biblioteca_listas import BibliotecaListas
 from crear_lista import CrearLista
 from importar_lista import importar_nombres
 from reportar_bugs import url_reporte
+from iconos import TAMANOS, elegir_tamano, ruta_ico, ruta_png
 
 
 class Aplicacion(tk.Tk):
-    def __init__(self):
+    def __init__(self, ruta_configuracion=RUTA_CONFIGURACION):
+        self.ajustes = cargar_configuracion(ruta_configuracion)
+        iniciar_textos(self.ajustes)
         if sys.platform == "win32":
             # Evitar que Windows agrupe la aplicación bajo el icono de Python.
             import ctypes
+            # Solicitar la escala real del sistema antes de crear la ventana.
+            try:
+                ctypes.windll.shcore.SetProcessDpiAwareness(1)
+            except (AttributeError, OSError):
+                ctypes.windll.user32.SetProcessDPIAware()
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SelectorMoebius.Desktop.1")
         super().__init__(className="SelectorMoebius")
-        self.title("Selector · Alumnos")
-        self.geometry("1280x720")
+        self.title(tr('app.nombre', 'titulo'))
+        self.geometry(f"{self.ajustes.ancho}x{self.ajustes.alto}")
         self.minsize(500, 500)
-        self.configure(background="#F0B7C9")
+        self._tema_actual = 'oscuro' if self.ajustes.tema == 'oscuro' else 'claro'
+        self._parar_tema = Event()
+        self._cola_tema = Queue()
+        self._temporizador_tema = None
+        self._modo_actual = 'ventana'
+        self.protocol('WM_DELETE_WINDOW', self.destroy)
         self._configurar_icono()
+        self.biblioteca = BibliotecaListas()
         self.selector = None
         self.ruta = None
         self.numero = tk.StringVar(value="1")
-        self.resultado = tk.StringVar(value="Carga una lista para empezar")
-        self.detalle = tk.StringVar(value="Cada alumno participa una vez por ronda.")
-        self.estado = tk.StringVar(value="Sin lista cargada")
-        self.archivo = tk.StringVar(value="Archivo de alumnos (.list o .txt)")
+        self.resultado = tk.StringVar(value=tr('inicio.resultado'))
+        self.detalle = tk.StringVar(value=tr('inicio.detalle'))
+        self.estado = tk.StringVar(value=tr('inicio.estado'))
+        self.archivo = tk.StringVar(value=tr('inicio.archivo'))
         self._estilos()
         self._construir()
+        self._estilos()
+        self.bind("<Escape>", self._salir_pantalla)
+        self.bind("<F11>", self._alternar_pantalla)
+        self.after_idle(lambda: self._aplicar_modo(self.ajustes.modo))
+        if self.ajustes.tema == "sistema":
+            self._observar_tema()
         self.bind("<Return>", self._al_pulsar_enter)
-        if ARCHIVO_PREDETERMINADO.exists():
-            self._cargar(ARCHIVO_PREDETERMINADO)
+        self._iniciar_biblioteca()
 
     def _configurar_icono(self):
-        carpeta = Path(__file__).resolve().parent
         try:
-            # Conservar referencias: Tk elimina las imágenes si Python las libera.
-            self._icono = tk.PhotoImage(file=str(carpeta / "icono_lista_moebius.png"))
-            self._iconos = [self._icono] + [self._icono.subsample(factor) for factor in (2, 4, 8, 16)]
-            self._icono_cabecera = self._iconos[3]
+            # La escala de Tk son píxeles por punto (96 DPI = 96/72).
+            escala = float(self.tk.call("tk", "scaling")) / (96 / 72)
+            tamano_cabecera = elegir_tamano(round(32 * escala))
+            # X11 recomienda un icono grande y uno pequeño; el dock dispone
+            # además de todos los tamaños instalados en el tema hicolor.
+            tamanos = sorted({256, tamano_cabecera}, reverse=True)
+            if sys.platform == "win32":
+                tamanos = [n for n in TAMANOS if n <= 256]
+                if tamano_cabecera not in tamanos:
+                    tamanos.append(tamano_cabecera)
+            imagenes = {n: tk.PhotoImage(master=self, file=str(ruta_png(n))) for n in tamanos}
+            self._iconos = list(imagenes.values())
+            self._icono = imagenes[256]
+            self._icono_cabecera = imagenes[tamano_cabecera]
             self.iconphoto(True, *self._iconos)
             if sys.platform == "win32":
-                self.iconbitmap(default=str(carpeta / "icono_lista_moebius.ico"))
+                # Windows elige los recursos pequeños/grandes del ICO según
+                # las métricas de icono del sistema; conserva también los PNG.
+                self.iconbitmap(default=str(ruta_ico()))
         except (OSError, tk.TclError) as error:
             self.after_idle(lambda detalle=str(error): messagebox.showwarning(
-                "No se pudo cargar el icono",
-                f"Comprueba los archivos de icono junto a interfaz.py.\n\n{detalle}", parent=self))
+                tr('icono.error', 'titulo'),
+                tr("icono.error", detalle=detalle), parent=self))
 
     def _estilos(self):
-        estilo = ttk.Style(self)
-        estilo.theme_use("clam")
-        estilo.configure(".", background="#F0B7C9", foreground="#000000",
-                         bordercolor="#91445E", lightcolor="#FFFFFF", darkcolor="#91445E")
-        estilo.configure("TFrame", background="#F0B7C9")
-        estilo.configure("TLabel", background="#F0B7C9", foreground="#000000", font=("DejaVu Sans", 10))
-        estilo.configure("Titulo.TLabel", foreground="#000080", font=("DejaVu Sans", 17, "bold"))
-        estilo.configure("Suave.TLabel", foreground="#000080")
-        estilo.configure("Tarjeta.TFrame", background="#FFFFFF")
-        estilo.configure("Tarjeta.TLabel", background="#FFFFFF")
-        estilo.configure("Resultado.TLabel", background="#FFFFFF", foreground="#91445E", font=("DejaVu Sans", 17, "bold"))
-        estilo.configure("TButton", background="#FFFFFF", foreground="#91445E",
-                         font=("DejaVu Sans", 10), padding=(10, 7))
-        estilo.map("TButton", background=[("disabled", "#F0B7C9"), ("pressed", "#91445E"), ("active", "#F0B7C9")],
-                   foreground=[("disabled", "#91445E"), ("pressed", "#FFFFFF")])
-        estilo.configure("Principal.TButton", background="#D57896", foreground="#000000")
-        estilo.map("Principal.TButton", background=[("disabled", "#F0B7C9"), ("pressed", "#91445E"), ("active", "#91445E")],
-                   foreground=[("disabled", "#91445E"), ("pressed", "#FFFFFF"), ("active", "#FFFFFF")])
-        estilo.configure("TEntry", fieldbackground="#FFFFFF", foreground="#000000")
-        estilo.map("TEntry", selectbackground=[("!disabled", "#000080")], selectforeground=[("!disabled", "#FFFFFF")])
-        estilo.configure("Treeview", rowheight=30, font=("DejaVu Sans", 10),
-                         background="#FFFFFF", fieldbackground="#FFFFFF", foreground="#000000")
-        estilo.map("Treeview", background=[("selected", "#000080")], foreground=[("selected", "#FFFFFF")])
-        estilo.configure("Treeview.Heading", background="#D57896", foreground="#000000",
-                         font=("DejaVu Sans", 10, "bold"), padding=8)
-        estilo.map("Treeview.Heading", background=[("active", "#F0B7C9")])
-        estilo.configure("Vertical.TScrollbar", background="#D57896", troughcolor="#F0B7C9", arrowcolor="#000080")
-        estilo.map("Vertical.TScrollbar", background=[("pressed", "#91445E"), ("active", "#F0B7C9")])
-        estilo.configure("Horizontal.TProgressbar", background="#78D5B7", troughcolor="#FFFFFF")
+        aplicar_estilos(self, self._tema_actual)
+
+    def _observar_tema(self):
+        def observar():
+            while not self._parar_tema.is_set():
+                tema = detectar_tema_sistema()
+                if not self._parar_tema.is_set():
+                    self._cola_tema.put(tema)
+                self._parar_tema.wait(3)
+        Thread(target=observar, daemon=True).start()
+        self._recibir_tema()
+
+    def _recibir_tema(self):
+        ultimo = None
+        try:
+            while True:
+                ultimo = self._cola_tema.get_nowait()
+        except Empty:
+            pass
+        if ultimo is not None and ultimo != self._tema_actual:
+            self._tema_actual = ultimo
+            self._estilos()
+        self._temporizador_tema = self.after(300, self._recibir_tema)
+
+    def _aplicar_modo(self, modo):
+        # Cambiar la decoración al volver a mapear la ventana es fiable en X11.
+        self.withdraw()
+        self.attributes('-fullscreen', False)
+        self.overrideredirect(False)
+        if modo == 'ventana':
+            self.geometry(f'{self.ajustes.ancho}x{self.ajustes.alto}')
+            self.volver_ventana.grid_remove()
+        else:
+            self.volver_ventana.grid()
+            if modo == 'sin_bordes':
+                self.overrideredirect(True)
+                self.geometry(f'{self.winfo_screenwidth()}x{self.winfo_screenheight()}+0+0')
+            else:
+                self.attributes('-fullscreen', True)
+        self._modo_actual = modo
+        self.deiconify()
+
+    def _salir_pantalla(self, evento=None):
+        if self._modo_actual != 'ventana':
+            self._aplicar_modo('ventana')
+        return 'break'
+
+    def _alternar_pantalla(self, evento=None):
+        self._aplicar_modo('pantalla_completa' if self._modo_actual == 'ventana' else 'ventana')
+        return 'break'
+
+    def destroy(self):
+        self._parar_tema.set()
+        if self._temporizador_tema is not None:
+            self.after_cancel(self._temporizador_tema)
+            self._temporizador_tema = None
+        super().destroy()
 
     def _construir(self):
         marco = ttk.Frame(self, padding=14)
@@ -91,13 +156,13 @@ class Aplicacion(tk.Tk):
         cabecera = ttk.Frame(marco)
         cabecera.grid(row=0, column=0, sticky="ew")
         cabecera.columnconfigure(0, weight=1)
-        ttk.Label(cabecera, text="Selector de alumnos", style="Titulo.TLabel",
+        ttk.Label(cabecera, text=tr('app.nombre'), style="Titulo.TLabel",
                   image=getattr(self, "_icono_cabecera", ""), compound="left", padding=(0, 0, 8, 0)).grid(row=0, column=0, sticky="w")
         acciones = ttk.Frame(cabecera)
         acciones.grid(row=0, column=1, sticky="e")
-        ttk.Button(acciones, text="Abrir lista…", command=self.abrir).pack(side="left")
-        ttk.Button(acciones, text="Importar lista…", command=self.importar).pack(side="left", padx=(8, 0))
-        ttk.Button(acciones, text="Crear lista…", command=self.crear_lista).pack(side="left", padx=(8, 0))
+        ttk.Button(acciones, text=tr('lista.abrir'), command=self.abrir).pack(side="left")
+        ttk.Button(acciones, text=tr('lista.importar'), command=self.importar).pack(side="left", padx=(8, 0))
+        ttk.Button(acciones, text=tr('lista.crear'), command=self.crear_lista).pack(side="left", padx=(8, 0))
         # Mantener las acciones accesibles al reducir la ventana a 500 píxeles.
         def ajustar_cabecera(evento):
             estrecha = evento.width < 850
@@ -107,11 +172,22 @@ class Aplicacion(tk.Tk):
                                        columnspan=2 if estrecha else 1,
                                        pady=(8, 0) if estrecha else 0)
         cabecera.bind("<Configure>", ajustar_cabecera)
-        ttk.Label(marco, textvariable=self.archivo, style="Suave.TLabel", wraplength=460).grid(row=1, column=0, sticky="w", pady=(6, 10))
+        listas = ttk.Frame(marco)
+        listas.grid(row=1, column=0, sticky="ew", pady=(6, 10))
+        listas.columnconfigure(1, weight=1)
+        self.menu_listas = tk.Menu(self, tearoff=False, postcommand=self._refrescar_listas,
+                                  background=self.paleta["superficie"], foreground=self.paleta["texto"],
+                                  activebackground=self.paleta["activo"], activeforeground=self.paleta["sobre_activo"])
+        self.cambiar = ttk.Menubutton(listas, text=tr('lista.cambiar'), menu=self.menu_listas)
+        self.cambiar.grid(row=0, column=0, sticky="nw", padx=(0, 12))
+        etiqueta_lista = ttk.Label(listas, textvariable=self.archivo, style="Suave.TLabel", wraplength=290)
+        etiqueta_lista.grid(row=0, column=1, sticky="w")
+        listas.bind("<Configure>", lambda evento: etiqueta_lista.configure(
+            wraplength=max(160, evento.width - self.cambiar.winfo_width() - 12)))
 
         tarjeta = ttk.Frame(marco, style="Tarjeta.TFrame", padding=12)
         tarjeta.grid(row=2, column=0, sticky="ew")
-        ttk.Label(tarjeta, text="ALUMNO SELECCIONADO", style="Tarjeta.TLabel").pack(anchor="w")
+        ttk.Label(tarjeta, text=tr('participante.seleccionado'), style="Tarjeta.TLabel").pack(anchor="w")
         nombre = ttk.Label(tarjeta, textvariable=self.resultado, style="Resultado.TLabel", wraplength=440)
         nombre.pack(anchor="w", fill="x", pady=(10, 8))
         tarjeta.bind("<Configure>", lambda evento: nombre.configure(wraplength=max(200, evento.width - 40)))
@@ -120,14 +196,14 @@ class Aplicacion(tk.Tk):
         controles = ttk.Frame(marco)
         controles.grid(row=3, column=0, sticky="ew", pady=10)
         controles.columnconfigure(3, weight=1)
-        ttk.Label(controles, text="Número").grid(row=0, column=0, padx=(0, 10))
+        ttk.Label(controles, text=tr('participante.numero')).grid(row=0, column=0, padx=(0, 10))
         self.entrada = ttk.Entry(controles, textvariable=self.numero, width=5, font=("DejaVu Sans", 12))
         self.entrada.grid(row=0, column=1, ipady=6)
-        self.boton = ttk.Button(controles, text="Seleccionar", style="Principal.TButton", command=self.seleccionar, state="disabled")
+        self.boton = ttk.Button(controles, text=tr('seleccion.accion'), style="Principal.TButton", command=self.seleccionar, state="disabled")
         self.boton.grid(row=0, column=2, padx=10)
-        self.aleatorio = ttk.Button(controles, text="Aleatorio", command=self.seleccionar_aleatorio, state="disabled")
+        self.aleatorio = ttk.Button(controles, text=tr('seleccion.accion', 'aleatoria'), command=self.seleccionar_aleatorio, state="disabled")
         self.aleatorio.grid(row=0, column=3, sticky="w")
-        self.reinicio = ttk.Button(controles, text="Nueva ronda", command=self.reiniciar, state="disabled")
+        self.reinicio = ttk.Button(controles, text=tr('ronda.nueva'), command=self.reiniciar, state="disabled")
         self.reinicio.grid(row=0, column=4, sticky="e")
         def ajustar_controles(evento):
             estrecha = evento.width < 600
@@ -149,21 +225,67 @@ class Aplicacion(tk.Tk):
         listado.columnconfigure(0, weight=1)
         listado.rowconfigure(0, weight=1)
         self.tabla = ttk.Treeview(listado, columns=("numero", "nombre", "estado"), show="headings", selectmode="browse")
-        for columna, titulo, ancho in [("numero", "N.º", 45), ("nombre", "Alumno", 265), ("estado", "Participación", 130)]:
+        for columna, titulo, ancho in [("numero", tr('participante.numero', 'abreviado'), 45), ("nombre", tr('participante.alumno'), 265), ("estado", tr('participante.participacion'), 130)]:
             self.tabla.heading(columna, text=titulo)
             self.tabla.column(columna, width=ancho, minwidth=50, stretch=columna == "nombre")
         self.tabla.grid(row=0, column=0, sticky="nsew")
         scroll = ttk.Scrollbar(listado, orient="vertical", command=self.tabla.yview)
         scroll.grid(row=0, column=1, sticky="ns")
         self.tabla.configure(yscrollcommand=scroll.set)
-        self.tabla.tag_configure("visto", foreground="#000000", background="#78D5B7")
+        self.tabla.tag_configure("visto", foreground=self.paleta["sobre_visto"], background=self.paleta["visto"])
         self.tabla.bind("<<TreeviewSelect>>", self._fila_elegida)
         pie = ttk.Frame(marco)
         pie.grid(row=6, column=0, sticky="ew", pady=(12, 0))
         pie.columnconfigure(0, weight=1)
-        ttk.Label(pie, text="Si el número ya participó, se elige el siguiente pendiente.",
+        ttk.Label(pie, text=tr('seleccion.ayuda'),
                   style="Suave.TLabel", wraplength=300).grid(row=0, column=0, sticky="w")
-        ttk.Button(pie, text="Reportar bug", command=self.reportar_bug).grid(row=0, column=1, sticky="e")
+        ttk.Button(pie, text=tr('reporte.accion'), command=self.reportar_bug).grid(row=0, column=1, sticky="e")
+        self.volver_ventana = ttk.Button(pie, text=tr('pantalla.volver'), command=self._salir_pantalla)
+        self.volver_ventana.grid(row=1, column=0, columnspan=2, sticky='e', pady=(6,0))
+        self.volver_ventana.grid_remove()
+
+    def _iniciar_biblioteca(self):
+        try:
+            errores = self.biblioteca.incorporar_anteriores(ARCHIVO_PREDETERMINADO.parent)
+            rutas = self.biblioteca.listar()
+        except OSError as error:
+            messagebox.showerror(tr('biblioteca.error', 'titulo'), str(error), parent=self)
+            return
+        self._refrescar_listas()
+        if rutas:
+            ruta = next((p for p in rutas if p.stem.casefold() == 'alumnos'), rutas[0])
+            self._cambiar_lista(ruta)
+        if errores:
+            messagebox.showwarning(tr('biblioteca.incorporar_error', 'titulo'),
+                                   tr("biblioteca.incorporar_error", archivos=", ".join(errores)), parent=self)
+
+    def _refrescar_listas(self):
+        self.menu_listas.delete(0, "end")
+        try:
+            rutas = self.biblioteca.listar()
+        except OSError:
+            self.menu_listas.add_command(label=tr('biblioteca.error'), state="disabled")
+            return
+        if not rutas:
+            self.menu_listas.add_command(label=tr('biblioteca.vacia'), state="disabled")
+        for ruta in rutas:
+            self.menu_listas.add_command(label=ruta.stem, command=lambda elegida=ruta: self._cambiar_lista(elegida))
+
+    def _cambiar_lista(self, ruta):
+        try:
+            selector = Selector.desde_archivo(ruta)
+        except (OSError, UnicodeError, ValueError) as error:
+            messagebox.showerror(tr('lista.error'), str(error), parent=self)
+            return
+        self._usar_lista(selector, ruta)
+
+    def _guardar_en_biblioteca(self, selector, origen):
+        try:
+            ruta = self.biblioteca.guardar(origen.stem, selector.alumnos)
+        except (OSError, ValueError) as error:
+            messagebox.showerror(tr('lista.error', 'guardar'), str(error), parent=self)
+            return
+        self._usar_lista(selector, ruta)
 
     def seleccionar_aleatorio(self):
         if self.selector is None:
@@ -177,34 +299,30 @@ class Aplicacion(tk.Tk):
         try:
             url = url_reporte()
             if not webbrowser.open(url, new=2):
-                raise OSError(f"No se pudo abrir el navegador. Abre este enlace:\n{url}")
+                raise OSError(tr("reporte.navegador", url=url))
         except (OSError, ValueError, webbrowser.Error) as error:
-            messagebox.showerror("Reportar un error", str(error), parent=self)
+            messagebox.showerror(tr('reporte.accion', 'titulo'), str(error), parent=self)
 
     def crear_lista(self):
-        CrearLista(self, lambda nombres, ruta: self._usar_lista(Selector(nombres), ruta))
+        CrearLista(self, lambda nombres, ruta: self._usar_lista(Selector(nombres), ruta), self.biblioteca)
 
     def abrir(self):
-        ruta = filedialog.askopenfilename(parent=self, title="Abrir lista de alumnos", filetypes=[("Listas de alumnos", "*.list *.txt"), ("Todos los archivos", "*")])
+        ruta = filedialog.askopenfilename(parent=self, title=tr('lista.abrir', 'titulo'), filetypes=[(tr('archivo.filtro_listas'), "*.list *.txt"), (tr('archivo.filtro_todos'), "*")])
         if ruta:
             self._cargar(Path(ruta))
 
     def importar(self):
         ruta = filedialog.askopenfilename(
             parent=self,
-            title="Importar lista · Se utilizará la primera columna",
-            filetypes=[("Hojas de cálculo", "*.xlsx *.csv"),
-                       ("Excel", "*.xlsx"), ("CSV UTF-8", "*.csv")],
+            title=tr('lista.importar', 'titulo'),
+            filetypes=[(tr('archivo.filtro_hojas'), "*.xlsx *.csv"),
+                       (tr('archivo.filtro_excel'), "*.xlsx"), (tr('archivo.filtro_csv'), "*.csv")],
         )
         if not ruta:
             return
         omitir_cabecera = messagebox.askyesnocancel(
-            "Importar nombres de la primera columna",
-            "Se tomarán los nombres de la primera columna (A). En Excel se usará "
-            "la primera pestaña. Las celdas vacías se ignorarán.\n\n"
-            "La lista importada iniciará una nueva ronda.\n\n"
-            "¿La primera fila es un encabezado que debemos omitir?\n"
-            "Sí: omitir la primera fila. No: incluirla. Cancelar: no importar.",
+            tr('importar.aviso', 'titulo'),
+            tr('importar.aviso'),
             parent=self,
             default=messagebox.NO,
         )
@@ -213,38 +331,39 @@ class Aplicacion(tk.Tk):
         try:
             selector = Selector(importar_nombres(ruta, omitir_cabecera=omitir_cabecera))
         except (OSError, UnicodeError, ValueError) as error:
-            messagebox.showerror("No se pudo importar la lista", str(error), parent=self)
+            messagebox.showerror(tr('lista.error', 'importar'), str(error), parent=self)
             return
-        self._usar_lista(selector, Path(ruta))
+        self._guardar_en_biblioteca(selector, Path(ruta))
 
     def _cargar(self, ruta):
         try:
             selector = Selector.desde_archivo(ruta)
         except (OSError, UnicodeError, ValueError) as error:
-            messagebox.showerror("No se pudo abrir la lista", f"{error}\n\nUsa un archivo UTF-8 con un alumno por línea.", parent=self)
+            messagebox.showerror(tr('lista.error', 'abrir'), tr("lista.utf8", detalle=error), parent=self)
             return
-        self._usar_lista(selector, ruta)
+        self._guardar_en_biblioteca(selector, ruta)
 
     def _usar_lista(self, selector, ruta):
         self.selector = selector
         self.ruta = ruta
-        self.archivo.set(f"Lista: {ruta.name} · {len(selector.alumnos)} alumnos")
+        self.archivo.set(tr("lista.leyenda", nombre=ruta.stem, cantidad=len(selector.alumnos)))
         self._mostrar_ronda()
+        self._refrescar_listas()
 
     def _mostrar_ronda(self):
         self.numero.set("1")
-        self.resultado.set("¿Quién participa ahora?")
-        self.detalle.set("Elige un número o una fila y pulsa Seleccionar.")
+        self.resultado.set(tr('seleccion.espera'))
+        self.detalle.set(tr('seleccion.espera', 'ayuda'))
         self.tabla.delete(*self.tabla.get_children())
         for indice, nombre in enumerate(self.selector.alumnos):
-            self.tabla.insert("", "end", iid=str(indice), values=(indice + 1, nombre, "Pendiente"))
+            self.tabla.insert("", "end", iid=str(indice), values=(indice + 1, nombre, tr('participante.estado')))
         self._actualizar()
         self.entrada.focus_set()
 
     def _actualizar(self):
         vistos = len(self.selector.mirados)
         total = len(self.selector.alumnos)
-        self.estado.set(f"{vistos} de {total} han participado · {total - vistos} pendientes")
+        self.estado.set(tr("ronda.progreso", vistos=vistos, total=total, pendientes=total-vistos))
         self.barra.configure(maximum=total, value=vistos)
         self.boton.configure(state="normal")
         self.reinicio.configure(state="normal")
@@ -265,9 +384,8 @@ class Aplicacion(tk.Tk):
             return
         if self.selector.completado:
             if messagebox.askyesno(
-                "Lista completada",
-                "La lista se ha recorrido por completo y no hay una siguiente persona "
-                "en la lista.\n\n¿Quieres iniciar una nueva ronda?",
+                tr('ronda.completada', 'titulo'),
+                tr('ronda.completada', 'pregunta'),
                 parent=self,
             ):
                 self.reiniciar()
@@ -275,36 +393,42 @@ class Aplicacion(tk.Tk):
         try:
             numero = int(self.numero.get().strip())
         except ValueError:
-            messagebox.showwarning("Número inválido", "Introduce un número entero.", parent=self)
+            messagebox.showwarning(tr('seleccion.numero_error', 'titulo'), tr('seleccion.numero_error'), parent=self)
             self.entrada.focus_set()
             return
         try:
             indice, nombre = self.selector.seleccionar(numero)
         except ValueError as error:
-            messagebox.showwarning("Número inválido", str(error), parent=self)
+            messagebox.showwarning(tr('seleccion.numero_error', 'titulo'), str(error), parent=self)
             return
         self.resultado.set(nombre)
-        self.detalle.set(f"Alumno n.º {indice + 1}" + (f" · El n.º {numero} ya había participado." if indice + 1 != numero else " · Participación registrada."))
-        self.tabla.item(str(indice), values=(indice + 1, nombre, "Ya participó"), tags=("visto",))
+        self.detalle.set(tr("seleccion.detalle", "alternativa" if indice + 1 != numero else "texto", numero=indice+1, solicitado=numero))
+        self.tabla.item(str(indice), values=(indice + 1, nombre, tr('participante.estado', 'realizada')), tags=("visto",))
         self.tabla.selection_set(str(indice))
         self.tabla.see(str(indice))
         self._actualizar()
         if self.selector.completado:
-            self.detalle.set("¡Todos han participado! Pulsa Seleccionar para continuar.")
+            self.detalle.set(tr('ronda.completada'))
 
     def reiniciar(self):
         if self.selector is None:
             return
         if self.selector.mirados and not self.selector.completado:
-            if not messagebox.askyesno("Nueva ronda", "¿Reiniciar la participación de todos los alumnos?", parent=self):
+            if not messagebox.askyesno(tr('ronda.nueva'), tr('ronda.nueva', 'pregunta'), parent=self):
                 return
         self.selector.reiniciar()
         self._mostrar_ronda()
 
 
-def main():
-    app = Aplicacion()
+def main(ruta_configuracion=RUTA_CONFIGURACION):
+    try:
+        app = Aplicacion(ruta_configuracion)
+    except (ErrorConfiguracion, ImportError) as error:
+        from arranque import mostrar_error_inicio
+        mostrar_error_inicio(error)
+        return 1
     app.mainloop()
+    return 0
 
 
 if __name__ == "__main__":

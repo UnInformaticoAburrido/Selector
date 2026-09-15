@@ -46,7 +46,7 @@ class ConfiguracionTextosTests(unittest.TestCase):
         self.datos['ventana'] = {'ancho':1000, 'alto':650, 'modo':'pantalla completa sin bordes'}
         self.escribir()
         config = cargar_configuracion(self.ruta)
-        self.assertEqual(config.textos, self.libro)
+        self.assertEqual(config.textos, self.libro.resolve())
         self.assertEqual((config.languaje,config.tema,config.ancho,config.alto,config.modo), ('ES','oscuro',1000,650,'sin_bordes'))
 
     def test_valores_invalidos_tienen_diagnostico(self):
